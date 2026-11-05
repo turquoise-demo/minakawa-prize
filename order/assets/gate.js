@@ -9,7 +9,7 @@
   const b64 = u => btoa(String.fromCharCode(...new Uint8Array(u)));
   let enc = null;
 
-  async function getEnc() { if (!enc) { const r = await fetch("assets/prices.enc.json", { cache: "no-store" }); if (!r.ok) throw new Error("load"); enc = await r.json(); } return enc; }
+  async function getEnc() { if (!enc) { const r = await fetch("assets/prices.enc.v2.json", { cache: "no-store" }); if (!r.ok) throw new Error("load"); enc = await r.json(); } return enc; }
   // 合言葉ごとに鍵を作って、合う枠を探す（合言葉がちがうと、どの枠も開かない）
   async function unlock(pass) {
     const e = await getEnc();
@@ -31,7 +31,7 @@
     S.prices.c101 = {}; S.prices.c102 = {}; // 本物の取引先Aには特別価格が無いので、見本のお店にも付けない（ファンタウンだけ、他店に見えないかの点検用に残す）
     Object.values(S.prices).forEach(m => Object.keys(m).forEach(id => { m[id] = Math.max(1, Math.round(by[id].price * 0.95 * 10) / 10); })); // 見本の特別価格（5%引き）
     S.realPrices = true;
-    ["assets/server.js", "assets/app.js", "assets/admin.js"].forEach(src => { const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });
+    ["assets/server.js", "assets/app.js", "assets/admin.js"].map(x => x + "?v=" + (window.ASSET_V || "")).forEach(src => { const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });
   }
   function show(msg) {
     const app = document.getElementById("app");
