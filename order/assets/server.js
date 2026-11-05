@@ -9,7 +9,7 @@
    ============================================================ */
 (() => {
   "use strict";
-  const KEY = "mko-demo-v2", SKEY = "mko-sess-v1";
+  const KEY = "mko-demo-v3", SKEY = "mko-sess-v1";
   const DAY = 864e5, HOUR = 36e5;
   const ADMIN_IDLE_MS = 15 * 60e3, SHOP_IDLE_MS = 8 * HOUR;
   const MAX_FAIL = 5, LOCK_MS = 60e3;

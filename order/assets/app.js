@@ -34,7 +34,10 @@
   };
   const pic = (o, cls = "") => o && o.photo ? raw(`<span class="ph ${cls}"><img src="${esc(o.photo)}" alt="" loading="lazy" decoding="async"></span>`) : ill(o && o.icon || "detergent", o && o.cat, cls);
   const per = i => i.unitBased ? "/" + i.unit : "/個";
-  const caseTxt = i => i.unitBased ? "" : `1${i.unit} ${yen(i.price * i.perCase)}`;
+  // 価格は税別で表示し、税込を小さく添える（食品8%・日用品10%）
+  const inc = (i, v) => Math.round(v * (1 + Server.rateOf(i.cat)));
+  const caseTxt = i => i.unitBased ? "" : `1${i.unit} ${yen(i.price * i.perCase)}（税込${yen(inc(i, i.price * i.perCase))}）`;
+  const taxSmall = i => raw(`<small class="tin">税込 ${esc(yen(inc(i, i.price)))}</small>`);
   const specTxt = i => i.unitBased ? (i.spec || "") : [i.spec, `1${i.unit}${num(i.perCase)}個`].filter(Boolean).join("・");
   const ill = (icon, cat, cls = "") => raw(`<span class="ib ${cls}" data-cat-bg="${esc(cat)}"><svg viewBox="0 0 100 100" aria-hidden="true">${(window.ICONS || {})[icon] || ""}</svg></span>`);
 
@@ -130,7 +133,7 @@
     const q = S.cart[i.id] || 0, special = i.price < i.base;
     return h`<article class="lrow${q ? " on" : ""}" data-item="${i.id}">${pic(i)}
       <div class="li"><div class="nm">${i.name}${special ? h` <span class="pill red">特別価格</span>` : ""}</div><div class="sp">${specTxt(i)}　${unitChip(i)}</div></div>
-      <div class="lp"><b class="num">${yen(i.price)}</b><small>${per(i)}</small><div class="sp num">${caseTxt(i)}</div></div>
+      <div class="lp"><b class="num">${yen(i.price)}</b><small>${per(i)}（税別）</small><div>${taxSmall(i)}</div><div class="sp num">${caseTxt(i)}</div></div>
       <div class="la">${stepper(i)}</div></article>`;
   }
   function itemCard(i) {
@@ -142,7 +145,7 @@
       ${pic(i)}
       <div class="nm">${i.name}</div>
       <div class="sp">${specTxt(i)}</div>
-      <div class="lp"><div class="pr"><b class="num">${yen(i.price)}</b><small>${per(i)}</small>${special ? h`<span class="was">${yen(i.base)}</span>` : ""}</div>
+      <div class="lp"><div class="pr"><b class="num">${yen(i.price)}</b><small>${per(i)}（税別）</small>${special ? h`<span class="was">${yen(i.base)}</span>` : ""}</div><div>${taxSmall(i)}</div>
       <div class="cs num">${caseTxt(i)}</div></div>
       ${unitChip(i)}
       ${stepper(i)}
@@ -280,8 +283,8 @@
       <div class="vbar"><div><span class="en">QUICK ORDER</span><h1 class="ttl">表で発注</h1></div></div>
       <p class="sub">数を入れて <b>Enter</b> で次の行へ。いつもの発注表と同じ感覚で、上から打っていけます。入れた数はそのままカートに入ります。</p>
       <div class="row"><input class="inp" id="sq" placeholder="しぼりこみ（商品名・JAN）" value="${S.sheetQ || ""}" maxlength="40" aria-label="表をしぼりこむ"><button class="btn sm ghost" data-act="sheet-usual">いつもの数を入れる</button></div>
-      <div class="tbl-wrap"><table class="sheet"><thead><tr><th>商品名</th><th class="hide-sp">規格・入数</th><th class="r">単価</th><th class="r hide-sp">1ケース</th><th class="r">数量</th><th class="r">金額</th></tr></thead><tbody>
-      ${CAT_ORDER.filter(c => byCat[c]).map(c => h`<tr class="cat"><td colspan="6">${c}</td></tr>${byCat[c].map(i => { const q = S.cart[i.id] || 0; return h`<tr class="${q ? "on" : ""}" data-row="${i.id}"><td>${i.name}<div class="jan">${unitChip(i)}　JAN ${i.jan}</div></td><td class="hide-sp">${i.spec}・${i.perCase}個</td><td class="r num">${yen(i.price)}</td><td class="r num hide-sp">${yen(i.price * i.perCase)}</td><td class="r"><input class="q" type="number" inputmode="numeric" min="0" max="999" value="${q || ""}" data-sq="${i.id}" aria-label="${i.name}の数量（${i.unit}）"> <span class="sub">${i.unit}</span></td><td class="r num" data-amt="${i.id}">${q ? yen(i.price * i.perCase * q) : ""}</td></tr>`; })}`)}
+      <div class="tbl-wrap"><table class="sheet"><thead><tr><th>商品名</th><th class="hide-sp">規格・入数</th><th class="r">単価（税別）</th><th class="r hide-sp">1ケース（税別）</th><th class="r">数量</th><th class="r">金額</th></tr></thead><tbody>
+      ${CAT_ORDER.filter(c => byCat[c]).map(c => h`<tr class="cat"><td colspan="6">${c}</td></tr>${byCat[c].map(i => { const q = S.cart[i.id] || 0; return h`<tr class="${q ? "on" : ""}" data-row="${i.id}"><td>${i.name}<div class="jan">${unitChip(i)}　JAN ${i.jan}</div></td><td class="hide-sp">${i.spec}・${i.perCase}個</td><td class="r num">${yen(i.price)}<div class="tin">税込${yen(inc(i, i.price))}</div></td><td class="r num hide-sp">${yen(i.price * i.perCase)}<div class="tin">税込${yen(inc(i, i.price * i.perCase))}</div></td><td class="r"><input class="q" type="number" inputmode="numeric" min="0" max="999" value="${q || ""}" data-sq="${i.id}" aria-label="${i.name}の数量（${i.unit}）"> <span class="sub">${i.unit}</span></td><td class="r num" data-amt="${i.id}">${q ? yen(i.price * i.perCase * q) : ""}</td></tr>`; })}`)}
       </tbody></table></div>
       <div class="sheetbar" id="sheetbar">${sheetBar()}</div>
     </div>`;
@@ -302,7 +305,7 @@
       ${S.edit ? h`<div class="msg warn">訂正は ${S.edit.until} まで。直したら「訂正を送る」を押してください。<button class="rm" data-act="edit-quit">訂正をやめる</button></div>` : ""}
       <div class="goals">${goals.map(g => h`<div class="goal${g.have >= g.need ? " ok" : ""}"><div class="t"><span>${g.label}</span><span class="num">${g.have}/${g.need}${g.u}　${g.have >= g.need ? "OK" : `あと${g.need - g.have}${g.u}`}</span></div><div class="bar"><i data-w="${Math.round(g.have / g.need * 100)}"></i></div></div>`)}</div>
       <div>${lines.map(l => h`<div class="cl">${pic(l)}<div><div class="n">${l.name}</div><div class="s">${yen(l.price)}${per(l)}${l.unitBased ? "" : `・1${l.unit}${l.perCase}個`}${Server.rateOf(l.cat) === 0.1 ? "・税10%" : ""}</div></div>
-        <div class="r"><div class="mini-step"><button data-act="dec" data-id="${l.id}" aria-label="${l.name}を1つ減らす">−</button><span class="num">${l.qty}</span><button data-act="inc" data-id="${l.id}" aria-label="${l.name}を1つ増やす">＋</button></div><span class="amt num">${yen(l.amount)}</span><button class="rm" data-act="rm" data-id="${l.id}">外す</button></div></div>`)}</div>`;
+        <div class="r"><div class="mini-step"><button data-act="dec" data-id="${l.id}" aria-label="${l.name}を1つ減らす">−</button><span class="num">${l.qty}</span><button data-act="inc" data-id="${l.id}" aria-label="${l.name}を1つ増やす">＋</button></div><span class="amt num">${yen(l.amount)}<small class="tin">税込${yen(inc(l, l.amount))}</small></span><button class="rm" data-act="rm" data-id="${l.id}">外す</button></div></div>`)}</div>`;
     const short = goals.find(g => g.have < g.need);
     const sugg = short ? suggestFor(short, 3) : [];
     const sum = h`${short && sugg.length ? h`<div class="sugg"><b>${short.label}があと${short.need - short.have}${short.u}で注文できます。${short.key === "food" ? "いつもの商品" : short.label.replace("の商品", "")}から足す：</b><div class="row">${sugg.map(i => h`<button class="btn sm ghost" data-act="inc" data-id="${i.id}">＋1 ${i.name}</button>`)}</div></div>` : ""}
@@ -507,9 +510,11 @@
   window.addEventListener("hashchange", () => { closeSheet(); render(); scrollTo(0, 0); });
   // 別のタブでログアウト・注文したときも合わせる
   window.addEventListener("storage", e => { if (e.key && e.key.startsWith("mko-")) render(); });
-  document.addEventListener("DOMContentLoaded", () => {
+  const start = () => {
     $("#logout").addEventListener("click", () => { const adm = document.body.classList.contains("admin"); Server.logout(); S.cart = {}; toast("ログアウトしました"); route(adm ? "#/admin" : "#/login"); if (adm) render(); });
     $("#reset").addEventListener("click", () => { Server.resetDemo(); Object.keys(localStorage).filter(k => k.startsWith("mko-")).forEach(k => localStorage.removeItem(k)); toast("デモのデータを最初の状態に戻しました"); route("#/login"); });
     render();
-  });
+  };
+  // gate.js が合言葉を確かめたあとで読み込むので、読み込んだ時点で始める
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
