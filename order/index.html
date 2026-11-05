@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; manifest-src 'self'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#a0d2e6">
+<title>ミナカワ Web発注（デモ）</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Kaku+Gothic+Antique:wght@700;900&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/icons.js" defer></script>
+<script src="assets/data.js" defer></script>
+<script src="assets/server.js" defer></script>
+<script src="assets/app.js" defer></script>
+<script src="assets/admin.js" defer></script>
+</head>
+<body>
+<div class="demo-band">これはデモです。商品・価格・取引先はすべて架空で、注文しても実際には届きません　<button id="reset" class="rm">デモのデータを最初に戻す</button></div>
+<header class="hd">
+  <a class="logo" href="#/home"><img src="assets/logo.svg" alt="Minakawa inc." width="118" height="10"><b>Web発注</b></a>
+  <nav class="tnav" id="tnav" aria-label="メニュー"></nav>
+  <div class="who" id="who"></div>
+  <button class="out hide" id="logout" type="button">ログアウト</button>
+</header>
+<main id="app" tabindex="-1"><noscript><div class="wrap"><p>JavaScriptを有効にしてください。</p></div></noscript></main>
+<div class="cartbar" id="cartbar"></div>
+<nav class="bnav" id="bnav" aria-label="メニュー"></nav>
+<footer class="foot">株式会社ミナカワ　千葉県柏市加賀1-5-5<br><a href="https://turquoise-demo.github.io/minakawa-prize/">プライズ卸のサイト</a>　<a href="#/admin">管理画面（社内）</a></footer>
+</body>
+</html>
