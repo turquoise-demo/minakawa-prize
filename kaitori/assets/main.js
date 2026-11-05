@@ -2,10 +2,17 @@
   // メニュー
   const btn = document.querySelector('.menu-btn');
   const nav = document.querySelector('.gnav');
-  if (btn) btn.addEventListener('click', () => {
+  const closeMenu = () => { if (!nav) return; nav.classList.remove('open'); if (btn) btn.setAttribute('aria-expanded', 'false'); };
+  if (btn) btn.addEventListener('click', e => {
+    e.stopPropagation();
     const o = nav.classList.toggle('open');
     btn.setAttribute('aria-expanded', o);
   });
+  // メニューの項目を選んだら閉じる・外を押しても閉じる・Escでも閉じる
+  if (nav) nav.addEventListener('click', e => { if (e.target.closest('a')) closeMenu(); });
+  document.addEventListener('click', e => { if (nav && nav.classList.contains('open') && !e.target.closest('.gnav') && !e.target.closest('.menu-btn')) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  window.addEventListener('pageshow', closeMenu);
 
   // ふわっと表示
   const io = new IntersectionObserver(es => es.forEach(e => {

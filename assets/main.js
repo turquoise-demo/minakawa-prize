@@ -2,10 +2,17 @@
   // メニュー
   const btn = document.querySelector('.menu-btn');
   const nav = document.querySelector('.gnav');
-  if (btn) btn.addEventListener('click', () => {
+  const closeMenu = () => { if (!nav) return; nav.classList.remove('open'); if (btn) btn.setAttribute('aria-expanded', 'false'); };
+  if (btn) btn.addEventListener('click', e => {
+    e.stopPropagation();
     const o = nav.classList.toggle('open');
     btn.setAttribute('aria-expanded', o);
   });
+  // メニューの項目を選んだら閉じる・外を押しても閉じる・Escでも閉じる
+  if (nav) nav.addEventListener('click', e => { if (e.target.closest('a')) closeMenu(); });
+  document.addEventListener('click', e => { if (nav && nav.classList.contains('open') && !e.target.closest('.gnav') && !e.target.closest('.menu-btn')) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  window.addEventListener('pageshow', closeMenu);
 
   // ふわっと表示
   const io = new IntersectionObserver(es => es.forEach(e => {
@@ -24,9 +31,9 @@
     const slots = [...svg.querySelectorAll('.slot')];
     const SLOT_X = [238, 306, 372], SLOT_Y = [326, 330, 326];
     const S = 0.7;
-    const ROTA = ['cabbage', 'eggs', 'milk', 'meat', 'toilet', 'onion', 'tea', 'apple', 'detergent', 'juice', 'gyoza', 'corn'];
+    const ROTA = ['chips', 'cabbage', 'drink', 'noodle', 'toilet', 'soda', 'eggs', 'wrap', 'choco', 'meat', 'tea', 'tissue', 'candy', 'detergent', 'juice', 'trashbag', 'onion'];
     let nextType = 3;
-    const types = ['cabbage', 'eggs', 'milk'];
+    const types = ['chips', 'cabbage', 'drink'];
     const HOME = 196, L0 = 20, CABLE_TOP = 146;
     const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     const lerp = (a, b, t) => a + (b - a) * t;
