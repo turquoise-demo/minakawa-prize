@@ -66,3 +66,5 @@
 
 .ft .cols{grid-template-columns:1.3fr 1fr 1fr 1fr}
 @media (max-width:820px){.ft .cols{grid-template-columns:1fr}}
+
+.tcy{text-combine-upright:all;-webkit-text-combine:horizontal}
