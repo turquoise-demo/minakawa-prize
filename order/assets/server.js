@@ -9,13 +9,13 @@
    ============================================================ */
 (() => {
   "use strict";
-  const KEY = "mko-demo-v1", SKEY = "mko-sess-v1";
+  const KEY = "mko-demo-v2", SKEY = "mko-sess-v1";
   const DAY = 864e5, HOUR = 36e5;
   const ADMIN_IDLE_MS = 15 * 60e3, SHOP_IDLE_MS = 8 * HOUR;
   const MAX_FAIL = 5, LOCK_MS = 60e3;
   const SALT = "0sbPZZezRRLdKcNNyGg+Lg==";
   const HASH = { admin: "V7CQZGH0SgdH4TA/ifbKIXdE0lKQtMpjF38lMMdBvdg=", shop: "GkKnz90hzIKtatUP61+AeeUw73P+Ns7G9MWVhaRurmI=" };
-  const FOOD_CATS = ["麺類", "お菓子", "飲料", "栄養ドリンク", "食品"];
+  const FOOD_CATS = ["麺類", "お菓子", "飲料", "オロナミンC", "食品"];
   const TAX10_CATS = ["日用品"];
   const FOOD_MIN = 15;
   const STATUSES = ["受注", "出荷準備", "出荷済", "納品済"];
@@ -42,11 +42,7 @@
   /* ---------- 見本の注文履歴 ---------- */
   function genOrders(d) {
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const sets = {
-      c101: ["p001", "p002", "p008", "p009", "p016", "p021", "p024", "p035", "p040", "p044", "p046"],
-      c102: ["p001", "p003", "p005", "p011", "p016", "p018", "p031", "p033", "p044"],
-      c201: ["p008", "p010", "p012", "p020", "p021", "p024", "p036", "p042", "p047"],
-    };
+    const sets = SEED.sets;
     const out = []; const now = Date.now();
     d.customers.forEach(c => {
       const base = sets[c.id] || []; let t = now - 70 * DAY;
@@ -62,9 +58,9 @@
     const a = build(d, "c101", sets.c101.slice(0, 7).map(id => ({ id, qty: 2 })), { createdAt: now - 2 * DAY, date: iso(now), person: "山田", note: "" });
     a.status = "出荷済"; a.statusAt = { 受注: now - 2 * DAY, 出荷準備: now - 2 * DAY + 3 * HOUR, 出荷済: now - DAY };
     out.push(a);
-    const b = build(d, "c101", [{ id: "p001", qty: 3 }, { id: "p008", qty: 4 }, { id: "p016", qty: 5 }, { id: "p024", qty: 2 }, { id: "p044", qty: 1 }, { id: "p035", qty: 1 }], { createdAt: now - 3 * HOUR, date: iso(nextBizDay(now, 2)), person: "山田", note: "裏口に置いてください" });
+    const b = build(d, "c101", sets.c101.slice(0, 6).map((id, k) => ({ id, qty: [3, 2, 2, 3, 4, 2][k] })), { createdAt: now - 3 * HOUR, date: iso(nextBizDay(now, 2)), person: "山田", note: "裏口に置いてください" });
     out.push(b);
-    const c = build(d, "c201", [{ id: "p008", qty: 6 }, { id: "p020", qty: 5 }, { id: "p024", qty: 4 }, { id: "p047", qty: 2 }], { createdAt: now - 5 * HOUR, date: iso(nextBizDay(now, 2)), person: "鈴木", note: "" });
+    const c = build(d, "c201", sets.c201.slice(0, 6).map(id => ({ id, qty: 3 })), { createdAt: now - 5 * HOUR, date: iso(nextBizDay(now, 2)), person: "鈴木", note: "" });
     out.push(c);
     return out.sort((x, y) => y.createdAt - x.createdAt);
   }
@@ -80,12 +76,12 @@
   /* ---------- 注文のルール ---------- */
   function unitInfo(t) {
     t = String(t || "").trim();
-    let m = t.match(/^([☆★◆])\s*混載可能\s*(\d+)\s*(ケース|箱|袋)?〜/);
+    let m = t.match(/^([☆★◆◇△])\s*混載可能\s*(\d+)\s*([^\d〜（]*)〜/);
     if (m) return { kind: "mark", mark: m[1], min: +m[2], u: m[3] || "ケース", label: `${m[1]}印どうし合わせて${m[2]}${m[3] || "ケース"}〜` };
-    m = t.match(/^(\d+)\s*(ケース|箱|袋|個)?〜（1商品につき）/);
+    m = t.match(/^(\d+)\s*([^\d〜（]*)〜（1商品につき）/);
     if (m) return { kind: "item", min: +m[1], u: m[2] || "ケース", label: `1商品${m[1]}${m[2] || "ケース"}〜` };
-    m = t.match(/^(\d+)\s*(ケース|箱|袋|個)?〜/);
-    if (m) return { kind: "item", min: +m[1], u: m[2] || "ケース", label: `${m[1]}${m[2] || "ケース"}から` };
+    m = t.match(/^(\d+)\s*([^\d〜（]*)〜(?:（(.+)）)?/);
+    if (m) return { kind: "item", min: +m[1], u: m[2] || "ケース", label: `${m[1]}${m[2] || "ケース"}から`, extra: m[3] || "" };
     return { kind: "free", min: 0, u: "ケース", label: t || "数量はご相談" };
   }
   const rateOf = cat => TAX10_CATS.includes(cat) ? 0.1 : 0.08;
@@ -117,7 +113,7 @@
     const lines = Object.entries(merged).map(([id, qty]) => {
       const it = byId[id];
       const price = unitPrice(d, cid, it);
-      return { id, name: it.name, spec: it.spec, cat: it.cat, unit: it.unit, perCase: it.perCase, minText: it.minText, icon: it.icon, jan: it.jan, qty, price, amount: price * it.perCase * qty };
+      return { id, name: it.name, spec: it.spec, cat: it.cat, unit: it.unit, perCase: it.perCase, unitBased: !!it.unitBased, minText: it.minText, icon: it.icon, photo: it.photo || "", jan: it.jan, qty, price, amount: price * it.perCase * qty };
     });
     const c = d.customers.find(x => x.id === cid);
     const t = meta.createdAt || Date.now();
@@ -179,7 +175,7 @@
   /* ---------- 取引先の操作 ---------- */
   function _catalog(c, d = db) {
     if (c.role === "admin") return clone(d.items);
-    return visibleItems(d, c.cid).map(i => ({ id: i.id, cat: i.cat, section: i.section, name: i.name, spec: i.spec, perCase: i.perCase, unit: i.unit, minText: i.minText, icon: i.icon, jan: i.jan,
+    return visibleItems(d, c.cid).map(i => ({ id: i.id, cat: i.cat, section: i.section, name: i.name, spec: i.spec, perCase: i.perCase, pcs: i.pcs, unit: i.unit, unitBased: !!i.unitBased, minText: i.minText, note: i.note || "", frozen: !!i.frozen, ball: i.ball || 0, icon: i.icon, photo: i.photo || "", photo2: i.photo2 || "", jan: i.jan,
       price: unitPrice(d, c.cid, i), base: i.price })); // 原価・他店の単価は返さない
   }
   function _orders(c, d = db) { return clone(c.role === "admin" ? d.orders : d.orders.filter(o => o.customerId === c.cid)); }
@@ -275,24 +271,25 @@
     needAdmin(c);
     const d = clone(db); // 本物のデータは触らない（コピーで試す）
     const A = { role: "shop", cid: "c101" }, B = "c201";
+    const P1 = d.items[0].id, PB = Object.keys(d.prices[B] || {}).find(id => !(d.prices.c101 || {})[id]);
     const res = [];
     const t = (name, fn) => { try { const r = fn(); res.push({ name, ok: r === true, note: typeof r === "string" ? r : "" }); } catch (e) { res.push({ name, ok: false, note: "予期しないエラー：" + e.message }); } };
     const denied = fn => { try { fn(); return false; } catch (e) { return e instanceof AuthError || e instanceof RuleError; } };
     t("取引先Aから、他の取引先の注文が見えない", () => _orders(A, d).every(o => o.customerId === "c101") && _orders(A, d).length > 0);
     t("取引先Aが、他の取引先の注文を取り消せない", () => { const ob = d.orders.find(o => o.customerId === B && o.status === "受注"); return !!ob && denied(() => _cancel(A, d, ob.id)); });
-    t("取引先Aが、他の取引先の注文を訂正できない", () => { const ob = d.orders.find(o => o.customerId === B && o.status === "受注"); return !!ob && denied(() => _edit(A, d, ob.id, { lines: [{ id: "p001", qty: 20 }], date: deliveryOptions()[0] })); });
-    t("画面から「1円」と送っても、サーバーの単価で計算される", () => { const o = _place(A, d, { lines: [{ id: "p001", qty: 15, price: 1, amount: 1 }], date: deliveryOptions()[0] }, true); return o.lines[0].price === unitPrice(d, "c101", d.items[0]) && o.sub > 15; });
-    t("数量にマイナス・小数・とても大きい数を入れると、はじかれる", () => [-1, 0, 1.5, 1e9, "3; drop table"].every(q => denied(() => _place(A, d, { lines: [{ id: "p001", qty: q }], date: deliveryOptions()[0] }, true))));
-    t("取り扱いのない商品IDを送ると、はじかれる", () => denied(() => _place(A, d, { lines: [{ id: "p999", qty: 20 }], date: deliveryOptions()[0] }, true)));
+    t("取引先Aが、他の取引先の注文を訂正できない", () => { const ob = d.orders.find(o => o.customerId === B && o.status === "受注"); return !!ob && denied(() => _edit(A, d, ob.id, { lines: [{ id: P1, qty: 20 }], date: deliveryOptions()[0] })); });
+    t("画面から「1円」と送っても、サーバーの単価で計算される", () => { const o = _place(A, d, { lines: [{ id: P1, qty: 15, price: 1, amount: 1 }], date: deliveryOptions()[0] }, true); return o.lines[0].price === unitPrice(d, "c101", d.items[0]) && o.sub > 15; });
+    t("数量にマイナス・小数・とても大きい数を入れると、はじかれる", () => [-1, 0, 1.5, 1e9, "3; drop table"].every(q => denied(() => _place(A, d, { lines: [{ id: P1, qty: q }], date: deliveryOptions()[0] }, true))));
+    t("取り扱いのない商品IDを送ると、はじかれる", () => denied(() => _place(A, d, { lines: [{ id: "zz-none", qty: 20 }], date: deliveryOptions()[0] }, true)));
     t("取引先の画面に、原価が届かない", () => _catalog(A, d).every(i => !("cost" in i)));
-    t("他の取引先だけの特別価格が、取引先Aに見えない", () => { const i = _catalog(A, d).find(x => x.id === "p008"); return i.price === d.items.find(x => x.id === "p008").price; });
+    t("他の取引先だけの特別価格が、取引先Aに見えない", () => { const i = _catalog(A, d).find(x => x.id === PB); return !!i && i.price === d.items.find(x => x.id === PB).price; });
     t("取引先Aが、商品表の取り込みを実行できない", () => denied(() => _import(A, d, [], {})));
-    t("取引先Aが、単価を書き換えられない", () => denied(() => _savePrices(A, d, [{ id: "p001", price: 1 }])));
+    t("取引先Aが、単価を書き換えられない", () => denied(() => _savePrices(A, d, [{ id: P1, price: 1 }])));
     t("取引先Aが、注文の状態（出荷済など）を変えられない", () => denied(() => _setStatus(A, d, d.orders.find(o => o.customerId === "c101").id, "納品済")));
     t("出荷の準備が始まった注文は、お店から訂正できない", () => { const o = d.orders.find(x => x.customerId === "c101" && x.status !== "受注"); return denied(() => _cancel(A, d, o.id)); });
     t("ご注文から24時間を過ぎると、お店から訂正できない", () => { const o = d.orders.find(x => x.customerId === "c101" && x.status === "受注"); o.createdAt -= 25 * HOUR; return denied(() => _cancel(A, d, o.id)); });
-    t("ご注文条件（食品は合わせて15ケース〜）を満たさない注文は、サーバー側でも受け付けない", () => denied(() => _place(A, d, { lines: [{ id: "p001", qty: 2 }], date: deliveryOptions()[0] }, true)));
-    t("備考に制御文字や長すぎる文を入れても、200文字に切り詰めて保存", () => { const o = _place(A, d, { lines: [{ id: "p001", qty: 15 }], date: deliveryOptions()[0], note: "a\u0000b".repeat(500) }, true); return o.note.length <= 200 && !/\u0000/.test(o.note); });
+    t("ご注文条件（食品は合わせて15ケース〜）を満たさない注文は、サーバー側でも受け付けない", () => denied(() => _place(A, d, { lines: [{ id: P1, qty: 2 }], date: deliveryOptions()[0] }, true)));
+    t("備考に制御文字や長すぎる文を入れても、200文字に切り詰めて保存", () => { const o = _place(A, d, { lines: [{ id: P1, qty: 15 }], date: deliveryOptions()[0], note: "a\u0000b".repeat(500) }, true); return o.note.length <= 200 && !/\u0000/.test(o.note); });
     t("ブラウザの保存領域に、パスワードを保存していない", () => { const all = JSON.stringify(localStorage) + JSON.stringify(sessionStorage); return !/minakawa-demo|shop-demo/.test(all); });
     t("管理画面は、15分操作がないと自動でログアウトする", () => ADMIN_IDLE_MS === 15 * 60e3 ? true : "設定がちがいます");
     t("ログインを5回まちがえると、1分間ロックされる", () => MAX_FAIL === 5 && LOCK_MS === 60e3);

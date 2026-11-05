@@ -3,7 +3,7 @@
    商品と単価は、いつものExcel（またはCSV）をそのまま取り込める。 */
 (() => {
   "use strict";
-  const { h, raw, esc, yen, num, jpDate, mdHm, $, $$, ill, toast, openSheet, closeSheet, CAT_COLOR } = window.APP;
+  const { h, raw, esc, yen, num, jpDate, mdHm, $, $$, ill, pic, per, specTxt, toast, openSheet, closeSheet, CAT_COLOR } = window.APP;
   const A = { tab: "dash", step: 1, code: "", msg: "", oFilter: "未完了", sel: null, q: "", cat: "", draft: {}, imp: null, test: null };
 
   const guard = fn => { try { return fn(); } catch (e) { if (e instanceof Server.AuthError) { A.msg = e.message; A.step = 1; draw(); return null; } if (e instanceof Server.RuleError) { toast(e.message); return null; } throw e; } };
@@ -92,7 +92,7 @@
       <div class="msg info">${mdHm(o.createdAt)}受付　${jpDate(o.deliveryDate)}お届け　ご担当 ${o.person || "—"}</div>
       ${o.note ? h`<div class="msg warn">備考：${o.note}</div>` : ""}
       ${o.edits.length ? h`<div class="msg">お店が訂正（${o.edits.map(e => mdHm(e.t)).join("、")}）。訂正前：${o.edits[o.edits.length - 1].before}</div>` : ""}
-      <table class="dl"><tbody>${o.lines.map(l => h`<tr><td>${l.name}<div class="sub">${l.spec}・${l.perCase}個</div></td><td class="r">${l.qty}${l.unit}</td><td class="r num">${yen(l.price)}/個</td><td class="r num">${yen(l.amount)}</td></tr>`)}</tbody></table>
+      <table class="dl"><tbody>${o.lines.map(l => h`<tr><td>${l.name}<div class="sub">${l.unitBased ? l.spec : `${l.spec ? l.spec + "・" : ""}${l.perCase}個`}</div></td><td class="r">${l.qty}${l.unit}</td><td class="r num">${yen(l.price)}/個</td><td class="r num">${yen(l.amount)}</td></tr>`)}</tbody></table>
       <div class="tot num"><div><span>小計</span><span>${yen(o.sub)}</span></div><div><span>消費税（8% ${yen(o.t8)}・10% ${yen(o.t10)}）</span><span>${yen(o.tax)}</span></div><div class="all"><span>合計</span><b>${yen(o.total)}</b></div></div>
       <div class="row">${next && o.status !== "取消" ? h`<button class="btn pri" data-act-a="status" data-id="${o.id}" data-st="${next}">「${next}」にする</button>` : ""}
         <span class="sub">${o.status === "受注" ? "出荷準備にすると、お店からは訂正できなくなります" : ""}</span></div></div>`);
@@ -109,7 +109,7 @@
       <div class="row"><input class="inp" id="iq" placeholder="商品名・JANでしぼりこむ" value="${A.q}" maxlength="40"><select class="inp" id="icat"><option value="">すべてのジャンル</option>${cats.map(c => h`<option${A.cat === c ? raw(" selected") : ""}>${c}</option>`)}</select></div>
       <p class="sub">単価の欄を直すと、オレンジ色になります。最後に「保存」を押すまで、お客様の画面は変わりません。粗利率が10%を切る商品は赤字で出します。</p>
       <div class="boxw"><table class="tbl"><thead><tr><th></th><th>商品名</th><th>ジャンル</th><th class="r">入数</th><th class="r">原価</th><th class="r">卸単価</th><th class="r">粗利率</th><th>状態</th></tr></thead><tbody>
-      ${list.map(i => { const p = A.draft[i.id] != null ? A.draft[i.id] : i.price; const m = i.cost ? Math.round((p - i.cost) / p * 100) : null; return h`<tr><td>${ill(i.icon, i.cat)}</td><td>${i.name}<div class="sub">${i.spec}・JAN ${i.jan}</div></td><td>${i.cat}<div class="sub">${i.section}</div></td><td class="r num">${i.perCase}</td><td class="r num">${i.cost ? yen(i.cost) : "—"}</td>
+      ${list.map(i => { const p = A.draft[i.id] != null ? A.draft[i.id] : i.price; const m = i.cost ? Math.round((p - i.cost) / p * 100) : null; return h`<tr><td>${pic(i)}</td><td>${i.name}<div class="sub">${specTxt(i)}${i.jan ? "・JAN " + i.jan : ""}</div></td><td>${i.cat}<div class="sub">${i.section}</div></td><td class="r num">${i.perCase}</td><td class="r num">${i.cost ? yen(i.cost) : "—"}</td>
         <td class="r"><input class="pi${A.draft[i.id] != null ? " dirty" : ""}" type="number" min="1" max="1000000" step="1" value="${p}" data-pid="${i.id}" aria-label="${i.name}の卸単価"></td><td class="r num ${m != null && m < 10 ? "fail" : ""}">${m == null ? "—" : m + "%"}</td><td>${i.active ? h`<span class="pill ok">販売中</span>` : h`<span class="pill">停止</span>`}</td></tr>`; })}
       </tbody></table></div>
       <div class="sheetbar"><span>${dirty ? `${dirty}品の単価を変更中` : "変更はありません"}</span><span class="spacer"></span><button class="btn sm ghost" data-act-a="draft-clear"${dirty ? "" : raw(" disabled")}>やめる</button><button class="btn ylw sm" data-act-a="draft-save"${dirty ? "" : raw(" disabled")}>保存</button></div>`;

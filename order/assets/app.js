@@ -19,9 +19,11 @@
   const norm = s => String(s || "").normalize("NFKC").toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   const LS = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 
-  const CAT_COLOR = { 麺類: "#fbe3dc", お菓子: "#fff1b8", 飲料: "#dcefF6", 栄養ドリンク: "#fde3c8", 食品: "#f1e6d2", "冷凍・お肉": "#f9dcd6", 生鮮: "#e3efd3", 日用品: "#e6e9f4" };
-  const CAT_EDGE = { 麺類: "#dc5028", お菓子: "#e1b400", 飲料: "#5aa8c8", 栄養ドリンク: "#ff8134", 食品: "#a8814a", "冷凍・お肉": "#c2452a", 生鮮: "#78a050", 日用品: "#5064a0" };
-  const CAT_ORDER = ["お菓子", "飲料", "栄養ドリンク", "麺類", "食品", "日用品", "生鮮", "冷凍・お肉"];
+  const CAT_COLOR0 = { 麺類: "#fbe3dc", お菓子: "#fff1b8", 飲料: "#dcefF6", 栄養ドリンク: "#fde3c8", 食品: "#f1e6d2", "冷凍・お肉": "#f9dcd6", 生鮮: "#e3efd3", 日用品: "#e6e9f4" };
+  const CAT_EDGE0 = { 麺類: "#dc5028", お菓子: "#e1b400", 飲料: "#5aa8c8", 栄養ドリンク: "#ff8134", 食品: "#a8814a", "冷凍・お肉": "#c2452a", 生鮮: "#78a050", 日用品: "#5064a0" };
+  const CAT_COLOR = { お菓子: "#fff1b8", 飲料: "#dcf0f6", オロナミンC: "#fde3c8", 麺類: "#fbe3dc", 食品: "#f1e6d2", 常温食品: "#f1e6d2", 青果: "#e3efd3", お肉: "#f9dcd6", 漬け魚と煮魚: "#e6e9f4", 冷凍フルーツ: "#e8f3f8", お米: "#f4efdf", 日用品: "#e6e9f4" };
+  const CAT_EDGE = { お菓子: "#e1b400", 飲料: "#5aa8c8", オロナミンC: "#ff8134", 麺類: "#dc5028", 食品: "#a8814a", 常温食品: "#a8814a", 青果: "#78a050", お肉: "#c2452a", 漬け魚と煮魚: "#5064a0", 冷凍フルーツ: "#5aa8c8", お米: "#a8814a", 日用品: "#5064a0" };
+  const CAT_ORDER = ["お菓子", "飲料", "オロナミンC", "麺類", "食品", "常温食品", "青果", "お肉", "漬け魚と煮魚", "冷凍フルーツ", "お米", "日用品"];
   const IC = {
     shop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9 20v-6h6v6"/></svg>',
     sheet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>',
@@ -30,11 +32,15 @@
     star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>',
   };
+  const pic = (o, cls = "") => o && o.photo ? raw(`<span class="ph ${cls}"><img src="${esc(o.photo)}" alt="" loading="lazy" decoding="async"></span>`) : ill(o && o.icon || "detergent", o && o.cat, cls);
+  const per = i => i.unitBased ? "/" + i.unit : "/個";
+  const caseTxt = i => i.unitBased ? "" : `1${i.unit} ${yen(i.price * i.perCase)}`;
+  const specTxt = i => i.unitBased ? (i.spec || "") : [i.spec, `1${i.unit}${num(i.perCase)}個`].filter(Boolean).join("・");
   const ill = (icon, cat, cls = "") => raw(`<span class="ib ${cls}" data-cat-bg="${esc(cat)}"><svg viewBox="0 0 100 100" aria-hidden="true">${(window.ICONS || {})[icon] || ""}</svg></span>`);
 
   /* ---------- 状態 ---------- */
   const S = { me: null, items: [], byId: {}, orders: [], cart: {}, favs: {}, view: "home", cat: "", q: "", vmode: LS.get("mko-vmode", "big"), draft: { date: "", person: "", note: "" }, edit: null };
-  window.APP = { S, h, raw, esc, yen, num, jpDate, mdHm, $, $$, ill, IC, toast, openSheet, closeSheet, render, LS, CAT_COLOR, CAT_EDGE };
+  window.APP = { S, h, raw, esc, yen, num, jpDate, mdHm, $, $$, ill, pic, per, specTxt, IC, toast, openSheet, closeSheet, render, LS, CAT_COLOR, CAT_EDGE };
 
   function load() {
     S.me = Server.me();
@@ -70,8 +76,11 @@
     });
   }
   const cartCount = () => Object.values(S.cart).reduce((a, q) => a + (q > 0 ? 1 : 0), 0);
+  // 「1商品5ケース〜」の商品は、5ケース未満にしない（減らすと0、増やすと5）
+  const minOf = i => { const u = Server.unitInfo(i && i.minText); return u.kind === "item" && u.min > 1 ? u.min : 1; };
   function setQty(id, q, quiet) {
     q = Math.max(0, Math.min(999, Math.round(Number(q) || 0)));
+    const m = minOf(S.byId[id]); if (q > 0 && q < m) q = q < (S.cart[id] || 0) ? 0 : m;
     if (q) S.cart[id] = q; else delete S.cart[id];
     saveCart(); if (!quiet) refresh();
   }
@@ -109,18 +118,19 @@
     const u = Server.unitInfo(i.minText);
     if (u.kind === "mark") return h`<span class="cond mk">${u.mark}印どうし ${u.min}${u.u}〜</span>`;
     if (u.kind === "item" && u.min > 1) return h`<span class="cond min">${u.label}</span>`;
-    return h`<span class="cond">${i.unit === "箱" ? "1箱から" : "1ケースから"}</span>`;
+    if (u.kind === "item") return h`<span class="cond">${u.min}${u.u}から${u.extra ? "・" + u.extra : ""}</span>`;
+    return h`<span class="cond">${u.label}</span>`;
   }
   function stepper(i) {
     const q = S.cart[i.id] || 0;
     if (!q) return h`<button class="add" data-act="add" data-id="${i.id}" aria-label="${i.name}をカートに入れる">＋ カートに入れる</button>`;
-    return h`<div><div class="stepper"><button data-act="dec" data-id="${i.id}" aria-label="${i.name}を1つ減らす">−</button><input type="number" inputmode="numeric" min="0" max="999" value="${q}" data-qty="${i.id}" aria-label="${i.name}の数量（${i.unit}）"><button data-act="inc" data-id="${i.id}" aria-label="${i.name}を1つ増やす">＋</button></div><div class="su">${i.unit}（${num(q * i.perCase)}個）</div></div>`;
+    return h`<div><div class="stepper"><button data-act="dec" data-id="${i.id}" aria-label="${i.name}を1つ減らす">−</button><input type="number" inputmode="numeric" min="0" max="999" value="${q}" data-qty="${i.id}" aria-label="${i.name}の数量（${i.unit}）"><button data-act="inc" data-id="${i.id}" aria-label="${i.name}を1つ増やす">＋</button></div><div class="su">${i.unit}${i.unitBased ? "" : `（${num(q * i.perCase)}個）`}</div></div>`;
   }
   function itemRow(i) {
     const q = S.cart[i.id] || 0, special = i.price < i.base;
-    return h`<article class="lrow${q ? " on" : ""}" data-item="${i.id}">${ill(i.icon, i.cat)}
-      <div class="li"><div class="nm">${i.name}${special ? h` <span class="pill red">特別価格</span>` : ""}</div><div class="sp">${i.spec}・1${i.unit}${num(i.perCase)}個　${unitChip(i)}</div></div>
-      <div class="lp"><b class="num">${yen(i.price)}</b><small>/個</small><div class="sp num">1${i.unit} ${yen(i.price * i.perCase)}</div></div>
+    return h`<article class="lrow${q ? " on" : ""}" data-item="${i.id}">${pic(i)}
+      <div class="li"><div class="nm">${i.name}${special ? h` <span class="pill red">特別価格</span>` : ""}</div><div class="sp">${specTxt(i)}　${unitChip(i)}</div></div>
+      <div class="lp"><b class="num">${yen(i.price)}</b><small>${per(i)}</small><div class="sp num">${caseTxt(i)}</div></div>
       <div class="la">${stepper(i)}</div></article>`;
   }
   function itemCard(i) {
@@ -129,11 +139,11 @@
     return h`<article class="item${q ? " on" : ""}" data-item="${i.id}">
       ${special ? h`<span class="tag pill red">特別価格</span>` : ""}
       <button class="fav" data-act="fav" data-id="${i.id}" aria-pressed="${String(fav)}" aria-label="${i.name}をお気に入り${fav ? "から外す" : "に追加"}">${raw(IC.star)}</button>
-      ${ill(i.icon, i.cat)}
+      ${pic(i)}
       <div class="nm">${i.name}</div>
-      <div class="sp">${i.spec}・1${i.unit}${num(i.perCase)}個</div>
-      <div class="lp"><div class="pr"><b class="num">${yen(i.price)}</b><small>/個</small>${special ? h`<span class="was">${yen(i.base)}</span>` : ""}</div>
-      <div class="cs num">1${i.unit} ${yen(i.price * i.perCase)}</div></div>
+      <div class="sp">${specTxt(i)}</div>
+      <div class="lp"><div class="pr"><b class="num">${yen(i.price)}</b><small>${per(i)}</small>${special ? h`<span class="was">${yen(i.base)}</span>` : ""}</div>
+      <div class="cs num">${caseTxt(i)}</div></div>
       ${unitChip(i)}
       ${stepper(i)}
     </article>`;
@@ -176,7 +186,7 @@
     const cnt = {}, qs = {};
     os.forEach(o => o.lines.forEach(l => { cnt[l.id] = (cnt[l.id] || 0) + 1; (qs[l.id] = qs[l.id] || []).push(l.qty); }));
     const med = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
-    const usual = Object.keys(cnt).filter(id => S.byId[id] && cnt[id] / os.length >= .5).sort((a, b) => cnt[b] - cnt[a]).map(id => ({ id, qty: med(qs[id]), rate: cnt[id] / os.length }));
+    const usual = Object.keys(cnt).filter(id => S.byId[id] && cnt[id] / os.length >= .5).sort((a, b) => cnt[b] - cnt[a]).map(id => ({ id, qty: Math.max(med(qs[id]), minOf(S.byId[id])), rate: cnt[id] / os.length }));
     const gaps = []; for (let k = 1; k < os.length; k++) gaps.push((os[k].createdAt - os[k - 1].createdAt) / 864e5);
     const cyc = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : 7;
     const last = os[os.length - 1];
@@ -194,12 +204,12 @@
     return h`<div class="wrap">
       <section class="hello"><div><span class="en">WELCOME</span><h1 class="ttl">${S.me.customer.store}さま、こんにちは</h1><p class="sub">${nextTxt}（いつもは${st.cyc}日ごと）</p></div>
         <div class="deliv">いま注文すると<b>${jpDate(opts[0])}</b>にお届け<br><small>15時までのご注文は翌営業日</small></div></section>
-      <div class="search">${raw(IC.search)}<input id="q" type="search" placeholder="商品名・JANで探す（例：カップ麺、ちょこ）" value="${S.q}" aria-label="商品を探す" enterkeyhint="search" maxlength="40"></div>
+      <div class="search">${raw(IC.search)}<input id="q" type="search" placeholder="商品名・JANで探す（例：カップヌードル、きっとかっと）" value="${S.q}" aria-label="商品を探す" enterkeyhint="search" maxlength="40"></div>
       <div id="sres"></div>
       <div class="sec-h"><h2 class="ttl">いつもの注文</h2><span class="sub">これまでのご注文から、自動でまとめています</span></div>
       <div class="usual">
         <div class="card pad"><div class="row"><b>よく頼む商品 ${st.usual.length}品</b><span class="spacer"></span><button class="btn pri" data-act="usual-all">いつもの数で まとめてカートへ</button></div>
-          <div class="list">${st.usual.slice(0, 8).map(u => { const i = S.byId[u.id]; return h`<div class="it">${ill(i.icon, i.cat)}<span>${i.name}<span class="sub">　いつも${u.qty}${i.unit}</span></span><button class="btn sm ghost" data-act="add-n" data-id="${i.id}" data-n="${u.qty}">＋${u.qty}</button></div>`; })}</div>
+          <div class="list">${st.usual.slice(0, 8).map(u => { const i = S.byId[u.id]; return h`<div class="it">${pic(i)}<span>${i.name}<span class="sub">　いつも${u.qty}${i.unit}</span></span><button class="btn sm ghost" data-act="add-n" data-id="${i.id}" data-n="${u.qty}">＋${u.qty}</button></div>`; })}</div>
           ${st.usual.length > 8 ? h`<p class="sub">ほか${st.usual.length - 8}品も一緒に入ります</p>` : ""}
         </div>
         <div class="card pad"><b>発注のリズム</b><p class="sub">直近${st.recent.length}回のご注文金額（税込）</p>
@@ -208,21 +218,25 @@
           ${st.last ? h`<button class="btn wide" data-act="reorder" data-id="${st.last.id}">前回（${mdHm(st.last.createdAt).split(" ")[0]}）と同じ内容をカートへ</button>` : ""}
         </div>
       </div>
-      <div class="sec-h"><h2 class="ttl">ジャンルから選ぶ</h2><span class="sub">お菓子・ドリンク・日用品・生鮮まで、全${S.items.length}品</span></div>
+      <div class="sec-h"><h2 class="ttl">ジャンルから選ぶ</h2><span class="sub">お菓子・飲料・麺類・青果・お肉・お魚まで、全${S.items.length}品</span></div>
       <div class="gtiles">
         ${favN ? h`<button class="gt" data-go="#/fav" data-cat-edge="お菓子"><span class="ib" data-cat-bg="お菓子"><svg viewBox="0 0 24 24" fill="#f2b705" stroke="#e1a400" stroke-width="1.2">${raw('<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>')}</svg></span><b>お気に入り</b><small>${favN}品</small></button>` : ""}
-        ${CAT_ORDER.filter(c => counts[c]).map(c => { const first = S.items.find(i => i.cat === c); return h`<button class="gt" data-go="#/list/${encodeURIComponent(c)}" data-cat-edge="${c}">${ill(first.icon, c)}<b>${c}</b><small>${counts[c]}品</small>${inCart[c] ? h`<span class="inc">${inCart[c]}</span>` : ""}</button>`; })}
+        ${CAT_ORDER.filter(c => counts[c]).map(c => { const first = S.items.find(i => i.cat === c); return h`<button class="gt" data-go="#/list/${encodeURIComponent(c)}" data-cat-edge="${c}">${pic(S.items.find(i => i.cat === c && i.photo) || first)}<b>${c}</b><small>${counts[c]}品</small>${inCart[c] ? h`<span class="inc">${inCart[c]}</span>` : ""}</button>`; })}
       </div>
       ${rulesBox()}
     </div>`;
+  }
+  function marks(cat) {
+    const m = {}; S.items.filter(i => !cat || i.cat === cat).forEach(i => { const u = Server.unitInfo(i.minText); if (u.kind === "mark") m[u.mark] = u; });
+    return Object.values(m);
   }
   function rulesBox(cat) {
     const food = !cat || Server.FOOD_CATS.includes(cat);
     const hasMk = S.items.some(i => (!cat || i.cat === cat) && Server.unitInfo(i.minText).kind === "mark");
     if (!food && !hasMk) return "";
     return h`<div class="rules">
-      ${food ? h`<div class="rule"><span class="big">${Server.FOOD_MIN}<small>ケース〜</small></span><span>麺類・お菓子・飲料・栄養ドリンク・食品は、<b>ジャンルをまたいで合わせて${Server.FOOD_MIN}ケース</b>からご注文いただけます。カートで、あと何ケースかが分かります。</span></div>` : ""}
-      ${hasMk ? h`<div class="rule"><span class="big">☆</span><span>☆印の商品は、☆印どうし合わせて2ケースから。1品ずつは1ケースから選べます。</span></div>` : ""}
+      ${food ? h`<div class="rule"><span class="big">${Server.FOOD_MIN}<small>ケース〜</small></span><span>麺類・お菓子・飲料・オロナミンC・食品（調味料・油）は、<b>ジャンルをまたいで合わせて${Server.FOOD_MIN}ケース</b>からご注文いただけます。カートで、あと何ケースかが分かります。</span></div>` : ""}
+      ${hasMk ? marks(cat).map(m => h`<div class="rule"><span class="big">${m.mark}</span><span>${m.mark}印の商品は、${m.mark}印どうし合わせて${m.min}${m.u}からご注文いただけます。1品ずつは1${m.u}から選べます。</span></div>`) : ""}
     </div>`;
   }
 
@@ -287,11 +301,11 @@
     const head = h`<div class="row"><h2 class="ttl">${title}</h2><span class="sub">${lines.length}品目</span><span class="spacer"></span><button class="rm" data-act="clear">${S.edit ? "全部外す" : "空にする"}</button></div>
       ${S.edit ? h`<div class="msg warn">訂正は ${S.edit.until} まで。直したら「訂正を送る」を押してください。<button class="rm" data-act="edit-quit">訂正をやめる</button></div>` : ""}
       <div class="goals">${goals.map(g => h`<div class="goal${g.have >= g.need ? " ok" : ""}"><div class="t"><span>${g.label}</span><span class="num">${g.have}/${g.need}${g.u}　${g.have >= g.need ? "OK" : `あと${g.need - g.have}${g.u}`}</span></div><div class="bar"><i data-w="${Math.round(g.have / g.need * 100)}"></i></div></div>`)}</div>
-      <div>${lines.map(l => h`<div class="cl">${ill(l.icon, l.cat)}<div><div class="n">${l.name}</div><div class="s">${yen(l.price)}/個・1${l.unit}${l.perCase}個${Server.rateOf(l.cat) === 0.1 ? "・税10%" : ""}</div></div>
+      <div>${lines.map(l => h`<div class="cl">${pic(l)}<div><div class="n">${l.name}</div><div class="s">${yen(l.price)}${per(l)}${l.unitBased ? "" : `・1${l.unit}${l.perCase}個`}${Server.rateOf(l.cat) === 0.1 ? "・税10%" : ""}</div></div>
         <div class="r"><div class="mini-step"><button data-act="dec" data-id="${l.id}" aria-label="${l.name}を1つ減らす">−</button><span class="num">${l.qty}</span><button data-act="inc" data-id="${l.id}" aria-label="${l.name}を1つ増やす">＋</button></div><span class="amt num">${yen(l.amount)}</span><button class="rm" data-act="rm" data-id="${l.id}">外す</button></div></div>`)}</div>`;
-    const short = goals.find(g => g.key === "food" && g.have < g.need);
-    const sugg = short ? suggestFood(3) : [];
-    const sum = h`${short && sugg.length ? h`<div class="sugg"><b>あと${short.need - short.have}ケースで注文できます。いつもの商品から足す：</b><div class="row">${sugg.map(i => h`<button class="btn sm ghost" data-act="inc" data-id="${i.id}">＋1 ${i.name}</button>`)}</div></div>` : ""}
+    const short = goals.find(g => g.have < g.need);
+    const sugg = short ? suggestFor(short, 3) : [];
+    const sum = h`${short && sugg.length ? h`<div class="sugg"><b>${short.label}があと${short.need - short.have}${short.u}で注文できます。${short.key === "food" ? "いつもの商品" : short.label.replace("の商品", "")}から足す：</b><div class="row">${sugg.map(i => h`<button class="btn sm ghost" data-act="inc" data-id="${i.id}">＋1 ${i.name}</button>`)}</div></div>` : ""}
       <div class="tot num"><div><span>小計（税抜）</span><span>${yen(t.sub)}</span></div>
         ${t.base8 ? h`<div class="sub"><span>8%対象 ${yen(t.base8)}</span><span>消費税 ${yen(t.t8)}</span></div>` : ""}
         ${t.base10 ? h`<div class="sub"><span>10%対象 ${yen(t.base10)}</span><span>消費税 ${yen(t.t10)}</span></div>` : ""}
@@ -305,10 +319,11 @@
       </div>`;
     return full ? h`<div class="cartpage"><div class="card pad">${head}</div><div class="card pad sum">${sum}</div></div>` : h`${head}${sum}`;
   }
-  function suggestFood(n) {
-    const st = usualStats(); const ids = st.usual.map(u => u.id).filter(id => Server.FOOD_CATS.includes(S.byId[id].cat));
-    S.items.filter(i => Server.FOOD_CATS.includes(i.cat)).forEach(i => { if (!ids.includes(i.id)) ids.push(i.id); });
-    return ids.map(id => S.byId[id]).slice(0, n);
+  // 足りない条件に合う商品を、カートの中→いつもの商品→その他の順に出す
+  function suggestFor(g, n) {
+    const ok = g.key === "food" ? i => Server.FOOD_CATS.includes(i.cat) : i => { const u = Server.unitInfo(i.minText); return u.kind === "mark" && "mk" + u.mark === g.key; };
+    const ids = [...Object.keys(S.cart), ...usualStats().usual.map(u => u.id), ...S.items.map(i => i.id)];
+    return [...new Set(ids)].map(id => S.byId[id]).filter(i => i && ok(i)).slice(0, n);
   }
   function cartView() { return h`<div class="wrap"><div class="vbar"><div><span class="en">CART</span></div></div><div id="cartfull">${cartPane(true)}</div></div>`; }
 
@@ -438,8 +453,8 @@
       case "fav": S.favs[id] ? delete S.favs[id] : S.favs[id] = 1; LS.set("mko-fav:" + S.me.cid, S.favs); refresh(); break;
       case "vmode": S.vmode = el.dataset.v; LS.set("mko-vmode", S.vmode); render(); break;
       case "clear-q": S.q = ""; route("#/home"); break;
-      case "usual-all": { const st = usualStats(); const snap = { ...S.cart }; st.usual.forEach(u => { S.cart[u.id] = Math.max(S.cart[u.id] || 0, u.qty); }); saveCart(); refresh(); toast(`いつもの${st.usual.length}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); break; }
-      case "reorder": { const o = S.orders.find(x => x.id === id); const snap = { ...S.cart }; let n = 0; o.lines.forEach(l => { if (S.byId[l.id]) { S.cart[l.id] = (S.cart[l.id] || 0) + l.qty; n++; } }); saveCart(); toast(`${n}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); route("#/cart"); break; }
+      case "usual-all": { const st = usualStats(); const snap = { ...S.cart }; st.usual.forEach(u => { S.cart[u.id] = Math.max(S.cart[u.id] || 0, u.qty, minOf(S.byId[u.id])); }); saveCart(); refresh(); toast(`いつもの${st.usual.length}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); break; }
+      case "reorder": { const o = S.orders.find(x => x.id === id); const snap = { ...S.cart }; let n = 0; o.lines.forEach(l => { if (S.byId[l.id]) { S.cart[l.id] = Math.max((S.cart[l.id] || 0) + l.qty, minOf(S.byId[l.id])); n++; } }); saveCart(); toast(`${n}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); route("#/cart"); break; }
       case "sheet-usual": { usualStats().usual.forEach(u => { if (!S.cart[u.id]) S.cart[u.id] = u.qty; }); saveCart(); refresh(); toast("いつもの数を入れました"); break; }
       case "confirm": confirmOrder(); break;
       case "ck-add": setQty(id, Number(el.dataset.n)); confirmOrder(); break;
