@@ -38,8 +38,8 @@
     app.innerHTML = "";
     const sec = document.createElement("section"); sec.className = "login";
     sec.innerHTML = '<form class="box stack" id="gate"><div><span class="en">PASSPHRASE</span><h1 class="ttl">合言葉を入れてください</h1></div>'
-      + '<p class="sub">このデモには、本物の卸単価が入っています。ミナカワからお知らせした合言葉を入れると開きます。</p>'
-      + '<label class="field">合言葉<input name="p" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" required></label>'
+      + '<p class="sub">このデモには、本物の卸単価が入っています。ミナカワからお知らせした合言葉を入れると開きます。入れた文字は、そのまま見えます。</p>'
+      + '<label class="field">合言葉<input name="p" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="40" required placeholder="例）nupushi"></label>'
       + '<div class="msg bad hide" role="alert" id="gmsg"></div><button class="btn pri lg wide" type="submit">開く</button></form>';
     app.appendChild(sec);
     const m = document.getElementById("gmsg"); if (msg) { m.textContent = msg; m.classList.remove("hide"); }
