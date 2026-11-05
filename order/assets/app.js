@@ -131,7 +131,8 @@
   }
   function itemRow(i) {
     const q = S.cart[i.id] || 0, special = i.price < i.base;
-    return h`<article class="lrow${q ? " on" : ""}" data-item="${i.id}">${pic(i)}
+    const fav = !!S.favs[i.id];
+    return h`<article class="lrow${q ? " on" : ""}" data-item="${i.id}"><button class="lfav" data-act="fav" data-id="${i.id}" aria-pressed="${String(fav)}" aria-label="${i.name}をお気に入り${fav ? "から外す" : "に追加"}">${raw(IC.star)}</button>${pic(i)}
       <div class="li"><div class="nm">${i.name}${special ? h` <span class="pill red">特別価格</span>` : ""}</div><div class="sp">${specTxt(i)}　${unitChip(i)}</div></div>
       <div class="lp"><b class="num">${yen(i.price)}</b><small>${per(i)}（税別）</small><div>${taxSmall(i)}</div><div class="sp num">${caseTxt(i)}</div></div>
       <div class="la">${stepper(i)}</div></article>`;
@@ -141,7 +142,7 @@
     const q = S.cart[i.id] || 0, fav = !!S.favs[i.id], special = i.price < i.base;
     return h`<article class="item${q ? " on" : ""}" data-item="${i.id}">
       ${special ? h`<span class="tag pill red">特別価格</span>` : ""}
-      <button class="fav" data-act="fav" data-id="${i.id}" aria-pressed="${String(fav)}" aria-label="${i.name}をお気に入り${fav ? "から外す" : "に追加"}">${raw(IC.star)}</button>
+      <button class="fav" data-act="fav" data-id="${i.id}" aria-pressed="${String(fav)}" aria-label="${i.name}をお気に入り${fav ? "から外す" : "に追加"}">${raw(IC.star)}<span>${fav ? "登録済み" : "お気に入り"}</span></button>
       ${pic(i)}
       <div class="nm">${i.name}</div>
       <div class="sp">${specTxt(i)}</div>
@@ -155,9 +156,10 @@
   /* ---------- ヘッダー・ナビ ---------- */
   function nav() {
     const n = cartCount();
-    const items = [["home", "商品", IC.shop], ["sheet", "表で発注", IC.sheet], ["cart", "カート", IC.cart], ["hist", "履歴", IC.hist]];
-    const cur = k => (k === "home" && ["home", "list", "search", "fav"].includes(S.view)) || S.view === k;
-    const b = items.map(([k, l, ic]) => h`<button data-go="#/${k}"${cur(k) ? raw(' aria-current="page"') : ""}>${raw(ic)}${l}${k === "cart" && n ? h`<span class="dot">${n}</span>` : ""}</button>`);
+    const items = [["home", "商品", IC.shop], ["fav", "お気に入り", IC.star], ["sheet", "表で発注", IC.sheet], ["cart", "カート", IC.cart], ["hist", "履歴", IC.hist]];
+    const cur = k => (k === "home" && ["home", "list", "search"].includes(S.view)) || S.view === k;
+    const favN = Object.keys(S.favs).filter(id => S.byId[id]).length;
+    const b = items.map(([k, l, ic]) => h`<button data-go="#/${k}"${cur(k) ? raw(' aria-current="page"') : ""}>${raw(ic)}${l}${k === "cart" && n ? h`<span class="dot">${n}</span>` : ""}${k === "fav" && favN ? h`<span class="dot fv">${favN}</span>` : ""}</button>`);
     $("#tnav").innerHTML = fmt(b); $("#bnav").innerHTML = fmt(b);
     const c = S.me && S.me.customer;
     $("#who").innerHTML = c ? h`<small>${c.company}</small><b>${c.store}</b>`.s : "";
@@ -250,7 +252,7 @@
     return S.items.filter(i => i.cat === S.cat);
   }
   function listBody(list) {
-    if (!list.length) return S.view === "fav" ? h`<div class="empty"><b>お気に入りはまだありません</b>商品の右上の☆を押すと、ここにまとまります。</div>`
+    if (!list.length) return S.view === "fav" ? h`<div class="empty"><b>お気に入りはまだありません</b>商品の写真の右上にある「☆ お気に入り」を押すと、ここにまとまります。</div>`
       : h`<div class="empty"><b>「${S.q}」は見つかりませんでした</b>ひらがな・カタカナ、どちらでも探せます。商品名の一部やJANでもOKです。</div>`;
     const secs = {}; list.forEach(i => { const k = S.view === "list" ? i.section : i.cat; (secs[k] = secs[k] || []).push(i); });
     return raw(fmt(Object.entries(secs).map(([s, arr]) => h`<h3 class="shelf">${s}<small>${arr.length}品</small></h3><div class="${S.vmode === "list" ? "list" : "grid"}">${arr.map(itemCard)}</div>`)));
@@ -270,6 +272,7 @@
       <div class="vbar"><h1 class="ttl">${title}</h1><span class="sub">${list.length}品</span>
         <div class="seg" role="group" aria-label="表示のしかた">${[["big", "写真"], ["list", "リスト"]].map(([k, l]) => h`<button data-act="vmode" data-v="${k}" aria-pressed="${String(S.vmode === k)}">${l}</button>`)}</div></div>
       ${S.view === "list" ? rulesBox(S.cat) : ""}
+      ${S.view === "fav" && list.length ? h`<div class="favbar"><span>よく頼む商品を☆で登録しておくと、ここからすぐ注文できます。</span><button class="btn pri" data-act="fav-all">お気に入りを まとめてカートへ</button></div>` : ""}
       <div id="results">${listBody(list)}</div>
     </div><aside class="cart card pad" id="side">${cartPane(false)}</aside></div></div>`;
   }
@@ -453,7 +456,8 @@
       case "dec": setQty(id, (S.cart[id] || 0) - 1); break;
       case "rm": { const snap = { ...S.cart }; setQty(id, 0); toast(`「${i.name}」を外しました`, () => { S.cart = snap; saveCart(); refresh(); }); break; }
       case "clear": { const snap = { ...S.cart }; S.cart = {}; saveCart(); refresh(); toast("カートを空にしました", () => { S.cart = snap; saveCart(); refresh(); }); break; }
-      case "fav": S.favs[id] ? delete S.favs[id] : S.favs[id] = 1; LS.set("mko-fav:" + S.me.cid, S.favs); refresh(); break;
+      case "fav": { const on = !S.favs[id]; on ? S.favs[id] = 1 : delete S.favs[id]; LS.set("mko-fav:" + S.me.cid, S.favs); if (S.view === "fav") render(); else refresh(); toast(on ? `「${i.name}」をお気に入りに入れました` : `「${i.name}」をお気に入りから外しました`, on ? null : () => { S.favs[id] = 1; LS.set("mko-fav:" + S.me.cid, S.favs); S.view === "fav" ? render() : refresh(); }); break; }
+      case "fav-all": { const snap = { ...S.cart }; let n = 0; Object.keys(S.favs).forEach(fid => { const it = S.byId[fid]; if (it && !S.cart[fid]) { S.cart[fid] = minOf(it); n++; } }); saveCart(); refresh(); toast(`お気に入りの${n}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); break; }
       case "vmode": S.vmode = el.dataset.v; LS.set("mko-vmode", S.vmode); render(); break;
       case "clear-q": S.q = ""; route("#/home"); break;
       case "usual-all": { const st = usualStats(); const snap = { ...S.cart }; st.usual.forEach(u => { S.cart[u.id] = Math.max(S.cart[u.id] || 0, u.qty, minOf(S.byId[u.id])); }); saveCart(); refresh(); toast(`いつもの${st.usual.length}品をカートに入れました`, () => { S.cart = snap; saveCart(); refresh(); }); break; }
